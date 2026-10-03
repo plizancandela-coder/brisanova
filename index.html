@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Brisa Nova · Seguimiento</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1d2340">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Brisa Nova">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+html,body{height:100%;margin:0;background:#eef0f1}
+#bn-carga{position:fixed;inset:0;display:grid;place-items:center;font:600 15px/1.4 "Helvetica Neue",Arial,sans-serif;color:#1d2340;text-align:center;padding:24px}
+#bn-carga b{display:block;font-size:22px;letter-spacing:.04em;margin-bottom:6px}
+</style>
+</head>
+<body>
+<div id="bn-carga"><div><b>BRISA NOVA</b><span id="bn-msg">Cargando seguimiento de obra…</span></div></div>
+<script>
+window.BN_API = 'https://script.google.com/macros/s/AKfycbwrdMp1jCvo17zeHz-3aQkZ23ZYfwVgY8FqhA272qUfC6YWT19AXGHjPwqQ_WFywls/exec';
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
+(async function () {
+  var html = null, msg = document.getElementById('bn-msg');
+  try {
+    var r = await fetch(window.BN_API + '?api=app', { cache: 'no-store' });
+    if (r.ok) { html = await r.text(); if (html.indexOf('<script') < 0) html = null; }
+    if (html) try { localStorage.setItem('bn_app', html); } catch (e) {}
+  } catch (e) {}
+  if (!html) try { html = localStorage.getItem('bn_app'); } catch (e) {}
+  if (!html) { msg.textContent = 'Sin conexión. Abre la app una vez con cobertura para poder usarla después sin ella.'; return; }
+  var doc = new DOMParser().parseFromString(html, 'text/html');
+  Array.prototype.forEach.call(doc.head.children, function (n) { if (n.tagName !== 'TITLE' && n.tagName !== 'SCRIPT') document.head.appendChild(document.importNode(n, true)); });
+  document.getElementById('bn-carga').remove();
+  var scripts = [];
+  Array.prototype.forEach.call(doc.body.childNodes, function (n) {
+    if (n.tagName === 'SCRIPT') scripts.push(n); else document.body.appendChild(document.importNode(n, true));
+  });
+  for (var i = 0; i < scripts.length; i++) {
+    await new Promise(function (ok) {
+      var s = document.createElement('script');
+      if (scripts[i].src) { s.src = scripts[i].src; s.onload = ok; s.onerror = ok; document.body.appendChild(s); }
+      else { s.textContent = scripts[i].textContent; document.body.appendChild(s); ok(); }
+    });
+  }
+})();
+</script>
+</body>
+</html>
