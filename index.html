@@ -3,49 +3,59 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Brisa Nova · Seguimiento</title>
+<title>Brisa Nova · Control de obra</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#1d2340">
+<meta name="theme-color" content="#ffffff">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Brisa Nova">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://script.google.com">
+<link rel="preconnect" href="https://script.googleusercontent.com">
+<link rel="preconnect" href="https://lh3.googleusercontent.com">
 <style>
-html,body{height:100%;margin:0;background:#eef0f1}
-#bn-carga{position:fixed;inset:0;display:grid;place-items:center;font:600 15px/1.4 "Helvetica Neue",Arial,sans-serif;color:#1d2340;text-align:center;padding:24px}
-#bn-carga b{display:block;font-size:22px;letter-spacing:.04em;margin-bottom:6px}
+html,body{margin:0;background:#f3f5f8}
+#bn-carga{position:fixed;inset:0;display:grid;place-items:center;font:600 15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:#141a2a;text-align:center;padding:24px}
+#bn-carga b{display:block;font-size:20px;letter-spacing:.14em;margin-bottom:6px}
+#bn-nueva{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:99;background:#2563eb;color:#fff;border:0;border-radius:12px;padding:11px 16px;font:500 14px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.2)}
 </style>
 </head>
 <body>
-<div id="bn-carga"><div><b>BRISA NOVA</b><span id="bn-msg">Cargando seguimiento de obra…</span></div></div>
+<div id="bn-carga"><div><b>BRISA NOVA</b><span id="bn-msg">Cargando control de obra…</span></div></div>
 <script>
 window.BN_API = 'https://script.google.com/macros/s/AKfycbwrdMp1jCvo17zeHz-3aQkZ23ZYfwVgY8FqhA272qUfC6YWT19AXGHjPwqQ_WFywls/exec';
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
-(async function () {
-  var html = null, msg = document.getElementById('bn-msg');
-  try {
-    var r = await fetch(window.BN_API + '?api=app', { cache: 'no-store' });
-    if (r.ok) { html = await r.text(); if (html.indexOf('<script') < 0) html = null; }
-    if (html) try { localStorage.setItem('bn_app', html); } catch (e) {}
-  } catch (e) {}
-  if (!html) try { html = localStorage.getItem('bn_app'); } catch (e) {}
-  if (!html) { msg.textContent = 'Sin conexión. Abre la app una vez con cobertura para poder usarla después sin ella.'; return; }
-  var doc = new DOMParser().parseFromString(html, 'text/html');
-  Array.prototype.forEach.call(doc.head.children, function (n) { if (n.tagName !== 'TITLE' && n.tagName !== 'SCRIPT') document.head.appendChild(document.importNode(n, true)); });
-  document.getElementById('bn-carga').remove();
-  var scripts = [];
-  Array.prototype.forEach.call(doc.body.childNodes, function (n) {
-    if (n.tagName === 'SCRIPT') scripts.push(n); else document.body.appendChild(document.importNode(n, true));
-  });
-  for (var i = 0; i < scripts.length; i++) {
-    await new Promise(function (ok) {
-      var s = document.createElement('script');
-      if (scripts[i].src) { s.src = scripts[i].src; s.onload = ok; s.onerror = ok; document.body.appendChild(s); }
-      else { s.textContent = scripts[i].textContent; document.body.appendChild(s); ok(); }
-    });
+(function () {
+  var KEY = 'bn_app2', cached = null, arrancada = false;
+  try { cached = localStorage.getItem(KEY); } catch (e) {}
+  async function arrancar(html) {
+    if (arrancada) return; arrancada = true;
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    Array.prototype.forEach.call(doc.head.children, function (n) { if (n.tagName !== 'TITLE' && n.tagName !== 'SCRIPT') document.head.appendChild(document.importNode(n, true)); });
+    var c = document.getElementById('bn-carga'); if (c) c.remove();
+    var scripts = [];
+    Array.prototype.forEach.call(doc.body.childNodes, function (n) { if (n.tagName === 'SCRIPT') scripts.push(n); else document.body.appendChild(document.importNode(n, true)); });
+    for (var i = 0; i < scripts.length; i++) {
+      await new Promise(function (ok) {
+        var s = document.createElement('script');
+        if (scripts[i].src) { s.src = scripts[i].src; s.onload = ok; s.onerror = ok; document.body.appendChild(s); }
+        else { s.textContent = scripts[i].textContent; document.body.appendChild(s); ok(); }
+      });
+    }
   }
+  // 1) se abre al instante con la versión guardada en el móvil
+  if (cached && cached.indexOf('<script') >= 0) arrancar(cached);
+  // 2) en segundo plano se comprueba si hay una versión nueva
+  fetch(window.BN_API + '?api=app&_=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : null; }).then(function (html) {
+    if (!html || html.indexOf('<script') < 0 || html === cached) return;
+    try { localStorage.setItem(KEY, html); } catch (e) {}
+    if (!arrancada) { arrancar(html); return; }
+    var b = document.createElement('button'); b.id = 'bn-nueva'; b.textContent = 'Hay una versión nueva · tocar para actualizar';
+    b.onclick = function () { location.reload(); }; document.body.appendChild(b);
+  }).catch(function () {
+    if (!arrancada) document.getElementById('bn-msg').textContent = 'Sin conexión. Abre la app una vez con cobertura para poder usarla después sin ella.';
+  });
 })();
 </script>
 </body>
